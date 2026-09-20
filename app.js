@@ -142,5 +142,5 @@
   };
   clickSound=()=>{jackpotSequence++;jackpotReelStops=0;stopFrameWhine();stopDoorRevealSound();$('#slot-stage').classList.remove('is-jackpot','is-jackpot-prelude','is-jackpot-complete');$('#confetti').replaceChildren();tone(680,.06,'triangle',.045)};
 
-  if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js?v=91').catch(()=>{}));bootPromise=boot();
+  if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js?v=92').catch(()=>{}));bootPromise=boot();
 })();
