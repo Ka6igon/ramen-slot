@@ -104,18 +104,20 @@
     try{const ctx=audio(),source=ctx.createBufferSource(),gain=ctx.createGain(),now=ctx.currentTime;source.buffer=reelStopBuffer;gain.gain.setValueAtTime(.9,now);gain.gain.exponentialRampToValueAtTime(.001,now+Math.max(.12,reelStopBuffer.duration));source.connect(gain).connect(ctx.destination);source.start(now)}catch{}
   }
   loadReelStopBuffer();loadSlowdownBuffer();
+  function normalizedSlotLevel(buffer){let square=0,peak=0,count=0;for(let ch=0;ch<buffer.numberOfChannels;ch++){const data=buffer.getChannelData(ch),step=Math.max(1,Math.floor(data.length/12000));for(let i=0;i<data.length;i+=step){const sample=data[i];square+=sample*sample;peak=Math.max(peak,Math.abs(sample));count++}}const rms=Math.sqrt(square/Math.max(1,count));return Math.min(.82,.76/Math.max(.01,peak),.115/Math.max(.01,rms))}
   startSpinSound=()=>{
     let stopped=false,spinSource=null,spinGain=null,slowSource=null,slowGain=null;
-    const fadeOut=(source,gain,seconds=.14)=>{if(!source||!gain)return;try{const now=audio().currentTime;gain.gain.cancelScheduledValues(now);gain.gain.setValueAtTime(Math.max(.001,gain.gain.value),now);gain.gain.exponentialRampToValueAtTime(.001,now+seconds);source.stop(now+seconds+.03)}catch{}};
+    const fadeOut=(source,gain,seconds=.16)=>{if(!source||!gain)return;try{const now=audio().currentTime;gain.gain.cancelScheduledValues(now);gain.gain.setValueAtTime(Math.max(.001,gain.gain.value),now);gain.gain.exponentialRampToValueAtTime(.001,now+seconds);source.stop(now+seconds+.03)}catch{}};
     Promise.all([loadRouletteSpinBuffer(),loadSlowdownBuffer()]).then(([spinBuffer,slowBuffer])=>{
       if(stopped||!spinBuffer)return;
-      const ctx=audio(),start=ctx.currentTime+.015,changeAt=start+3.98;
-      spinSource=ctx.createBufferSource();spinGain=ctx.createGain();spinSource.buffer=spinBuffer;spinSource.loop=true;spinSource.loopStart=.015;spinSource.loopEnd=Math.max(.02,spinBuffer.duration-.02);spinGain.gain.setValueAtTime(.001,start);spinGain.gain.linearRampToValueAtTime(.56,start+.045);spinSource.connect(spinGain).connect(ctx.destination);spinSource.start(start);
+      const ctx=audio(),start=ctx.currentTime+.015,slowStart=start+3.98,fadeDuration=.38,spinLevel=normalizedSlotLevel(spinBuffer),slowLevel=slowBuffer?normalizedSlotLevel(slowBuffer):0;
+      spinSource=ctx.createBufferSource();spinGain=ctx.createGain();spinSource.buffer=spinBuffer;spinSource.loop=true;spinSource.loopStart=.015;spinSource.loopEnd=Math.max(.02,spinBuffer.duration-.02);spinGain.gain.setValueAtTime(.001,start);spinGain.gain.linearRampToValueAtTime(spinLevel,start+.055);spinSource.connect(spinGain).connect(ctx.destination);spinSource.start(start);
       if(!slowBuffer)return;
-      spinGain.gain.setValueAtTime(.56,changeAt-.22);spinGain.gain.exponentialRampToValueAtTime(.001,changeAt+.17);
-      slowSource=ctx.createBufferSource();slowGain=ctx.createGain();slowSource.buffer=slowBuffer;const slowStart=changeAt-.07;slowGain.gain.setValueAtTime(.001,slowStart);slowGain.gain.linearRampToValueAtTime(.62,slowStart+.22);slowSource.connect(slowGain).connect(ctx.destination);slowSource.start(slowStart,.012);
+      // 同じ実効音量へ正規化した2音源を重ね、回転音が途切れないまま減速音へ移す。
+      spinGain.gain.setValueAtTime(spinLevel,slowStart);spinGain.gain.linearRampToValueAtTime(.001,slowStart+fadeDuration);
+      slowSource=ctx.createBufferSource();slowGain=ctx.createGain();slowSource.buffer=slowBuffer;slowGain.gain.setValueAtTime(.001,slowStart);slowGain.gain.linearRampToValueAtTime(slowLevel,slowStart+fadeDuration);slowSource.connect(slowGain).connect(ctx.destination);slowSource.start(slowStart,.012);
     });
-    return()=>{if(stopped)return;stopped=true;fadeOut(spinSource,spinGain,.14);fadeOut(slowSource,slowGain,.16)};
+    return()=>{if(stopped)return;stopped=true;fadeOut(spinSource,spinGain);fadeOut(slowSource,slowGain)};
   };
 
   // フィルターに合わせ、回す前の3リールにも対象店舗だけを表示する。
@@ -140,5 +142,5 @@
   };
   clickSound=()=>{jackpotSequence++;jackpotReelStops=0;stopFrameWhine();stopDoorRevealSound();$('#slot-stage').classList.remove('is-jackpot','is-jackpot-prelude','is-jackpot-complete');$('#confetti').replaceChildren();tone(680,.06,'triangle',.045)};
 
-  if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js?v=90').catch(()=>{}));bootPromise=boot();
+  if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js?v=91').catch(()=>{}));bootPromise=boot();
 })();
