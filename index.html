@@ -9,7 +9,7 @@
   <meta name="apple-mobile-web-app-title" content="RAMEN SLOT">
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="icons/ramen-home-bowl-icon-v2.png">
-  <link rel="stylesheet" href="style.css?v=92">
+  <link rel="stylesheet" href="style.css?v=93">
   <style>
     /* iPhoneでは操作ボタンを一列ずつ大きく表示する */
     .gacha-symbol { font-size: 32px; line-height: 1; margin-bottom: 4px; }
@@ -29,7 +29,7 @@
     </section>
 
     <section id="map" class="screen" aria-labelledby="map-title">
-      <div class="screen-heading"><div><p class="eyebrow">RAMEN MAP</p><h2 id="map-title">お店の地図</h2></div><div class="map-actions"><button id="map-settings-btn" class="icon-button" aria-label="Googleマップの設定"><svg class="map-settings-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.8v2.05M12 18.15v2.05M20.2 12h-2.05M5.85 12H3.8M17.8 6.2l-1.45 1.45M7.65 16.35 6.2 17.8M17.8 17.8l-1.45-1.45M7.65 7.65 6.2 6.2"/><circle cx="12" cy="12" r="4.15"/><circle cx="12" cy="12" r="1.15"/></svg></button><button id="locate-btn" class="icon-button" aria-label="現在地を表示"><svg class="locate-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m5.2 10.4 13.6-5.2-5.2 13.6-2.7-5.2z"/></svg></button></div></div>
+      <div class="screen-heading"><div><p class="eyebrow">RAMEN MAP</p><h2 id="map-title">お店の地図</h2></div><div class="map-actions"><button id="map-settings-btn" class="icon-button" aria-label="Googleマップの設定"><svg class="map-settings-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M19.43 12.98c.04-.32.07-.65.07-.98s-.02-.66-.07-.98l2.11-1.65c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.37-.31-.6-.22l-2.49 1c-.52-.4-1.08-.73-1.69-.98L14.5 2.42A.5.5 0 0 0 14 2h-4a.5.5 0 0 0-.5.42l-.38 2.65c-.61.25-1.18.59-1.69.98l-2.49-1c-.23-.08-.48 0-.6.22l-2 3.46c-.13.22-.07.49.12.64l2.11 1.65c-.04.32-.08.65-.08.98s.03.66.08.98l-2.11 1.65c-.19.15-.25.42-.12.64l2 3.46c.12.22.37.31.6.22l2.49-1c.51.4 1.08.73 1.69.98l.38 2.65c.04.24.25.42.5.42h4c.25 0 .46-.18.5-.42l.38-2.65c.61-.25 1.17-.58 1.69-.98l2.49 1c.23.09.48 0 .6-.22l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.65ZM12 15.5A3.5 3.5 0 1 1 12 8a3.5 3.5 0 0 1 0 7.5Z"/></svg></button><button id="locate-btn" class="icon-button" aria-label="現在地を表示"><svg class="locate-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m5.2 10.4 13.6-5.2-5.2 13.6-2.7-5.2z"/></svg></button></div></div>
       <p class="hint">店名で探すか、地図をタップしてお店の位置を選択できます。</p>
       <div id="place-search" class="map-search" aria-label="お店を検索">
         <label class="sr-only" for="place-search-input">店名を検索</label>
@@ -67,6 +67,6 @@
   <dialog id="crop-dialog"><div class="modal-head"><h2>写真を切り取る</h2><button id="crop-cancel" class="close" type="button" aria-label="閉じる">×</button></div><div class="crop-body"><p>1本指で動かし、2本指でつまんで大きさを調整できます。</p><div id="crop-viewport" class="crop-viewport"><img id="crop-image" alt="切り取り範囲のプレビュー"></div><button id="crop-apply" class="primary large" type="button">この範囲で使う</button></div></dialog>
   <dialog id="detail-dialog"><div class="modal-head"><h2 id="detail-name"></h2><button class="close" data-close="detail-dialog" aria-label="閉じる">×</button></div><img id="detail-photo" class="detail-photo hidden" alt="ラーメン写真"><div id="detail-content"></div><div class="modal-actions"><button id="convert-btn" class="primary hidden">訪問済みにする</button><button id="edit-btn" class="secondary">編集</button><button id="delete-btn" class="danger">削除</button></div></dialog>
   <dialog id="map-settings-dialog"><form id="map-settings-form"><div class="modal-head"><h2>Googleマップの設定</h2><button type="button" class="close" data-close="map-settings-dialog" aria-label="閉じる">×</button></div><p class="hint">Google Maps Demo Key またはご自身のAPIキーを入力してください。このキーはこの端末のブラウザ内だけに保存されます。</p><label>APIキー <input id="maps-api-key" type="password" autocomplete="off" placeholder="AIza..."></label><p id="map-settings-error" class="form-error" role="alert"></p><button class="primary large" type="submit">保存して地図を開く</button></form></dialog>
-  <script src="app.js?v=92"></script>
+  <script src="app.js?v=93"></script>
 </body>
 </html>
