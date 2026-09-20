@@ -94,5 +94,51 @@
   celebrationSound=()=>{};
   celebrate=()=>{};
   $('#slot-result').insertAdjacentHTML('afterbegin','<div class="jackpot-spotlights" aria-hidden="true"><i class="spot-tl"></i><i class="spot-tr"></i><i class="spot-bl"></i><i class="spot-br"></i></div>');$('.slot-machine').insertAdjacentHTML('beforeend','<div class="side-lamps" aria-hidden="true"><i class="l1"></i><i class="l2"></i><i class="l3"></i><i class="r1"></i><i class="r2"></i><i class="r3"></i></div>');
-  if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js?v=89').catch(()=>{}));bootPromise=boot();
+
+  // 音源は Web Audio で鳴らし、停止音と回転→減速のつなぎを端末差なく安定させる。
+  let reelStopBuffer=null,reelStopPromise=null,slowdownBuffer=null,slowdownPromise=null;
+  function loadReelStopBuffer(){if(reelStopBuffer)return Promise.resolve(reelStopBuffer);if(!reelStopPromise)reelStopPromise=fetch('sounds/roulette-stop-button.mp3').then(r=>r.arrayBuffer()).then(data=>audio().decodeAudioData(data)).then(buffer=>(reelStopBuffer=buffer)).catch(()=>null);return reelStopPromise}
+  function loadSlowdownBuffer(){if(slowdownBuffer)return Promise.resolve(slowdownBuffer);if(!slowdownPromise)slowdownPromise=fetch('sounds/roulette-slowdown.mp3').then(r=>r.arrayBuffer()).then(data=>audio().decodeAudioData(data)).then(buffer=>(slowdownBuffer=buffer)).catch(()=>null);return slowdownPromise}
+  function playReelStopSound(){
+    if(!reelStopBuffer){const fallback=slotStopClip.cloneNode();fallback.currentTime=0;fallback.volume=.9;fallback.play().catch(()=>{});loadReelStopBuffer();return}
+    try{const ctx=audio(),source=ctx.createBufferSource(),gain=ctx.createGain(),now=ctx.currentTime;source.buffer=reelStopBuffer;gain.gain.setValueAtTime(.9,now);gain.gain.exponentialRampToValueAtTime(.001,now+Math.max(.12,reelStopBuffer.duration));source.connect(gain).connect(ctx.destination);source.start(now)}catch{}
+  }
+  loadReelStopBuffer();loadSlowdownBuffer();
+  startSpinSound=()=>{
+    let stopped=false,spinSource=null,spinGain=null,slowSource=null,slowGain=null;
+    const fadeOut=(source,gain,seconds=.14)=>{if(!source||!gain)return;try{const now=audio().currentTime;gain.gain.cancelScheduledValues(now);gain.gain.setValueAtTime(Math.max(.001,gain.gain.value),now);gain.gain.exponentialRampToValueAtTime(.001,now+seconds);source.stop(now+seconds+.03)}catch{}};
+    Promise.all([loadRouletteSpinBuffer(),loadSlowdownBuffer()]).then(([spinBuffer,slowBuffer])=>{
+      if(stopped||!spinBuffer)return;
+      const ctx=audio(),start=ctx.currentTime+.015,changeAt=start+3.98;
+      spinSource=ctx.createBufferSource();spinGain=ctx.createGain();spinSource.buffer=spinBuffer;spinSource.loop=true;spinSource.loopStart=.015;spinSource.loopEnd=Math.max(.02,spinBuffer.duration-.02);spinGain.gain.setValueAtTime(.001,start);spinGain.gain.linearRampToValueAtTime(.56,start+.045);spinSource.connect(spinGain).connect(ctx.destination);spinSource.start(start);
+      if(!slowBuffer)return;
+      spinGain.gain.setValueAtTime(.56,changeAt-.22);spinGain.gain.exponentialRampToValueAtTime(.001,changeAt+.17);
+      slowSource=ctx.createBufferSource();slowGain=ctx.createGain();slowSource.buffer=slowBuffer;const slowStart=changeAt-.07;slowGain.gain.setValueAtTime(.001,slowStart);slowGain.gain.linearRampToValueAtTime(.62,slowStart+.22);slowSource.connect(slowGain).connect(ctx.destination);slowSource.start(slowStart,.012);
+    });
+    return()=>{if(stopped)return;stopped=true;fadeOut(spinSource,spinGain,.14);fadeOut(slowSource,slowGain,.16)};
+  };
+
+  // フィルターに合わせ、回す前の3リールにも対象店舗だけを表示する。
+  seedInitialSlot=()=>{
+    const stage=$('#slot-stage');if(spinning||stage?.classList.contains('is-jackpot'))return;
+    const pool=selectedFilter==='all'?shops:shops.filter(s=>s.status===selectedFilter),reels=$$('.slot-reel');if(!reels.length)return;
+    let picks=[];
+    if(pool.length>=3){const shuffled=[...pool];for(let i=shuffled.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[shuffled[i],shuffled[j]]=[shuffled[j],shuffled[i]]}picks=shuffled.slice(0,3)}
+    else if(pool.length){const pick=pool[Math.floor(Math.random()*pool.length)];picks=[pick,pick,pick]}
+    reels.forEach((reel,index)=>{reel.style.transition='none';reel.style.willChange='auto';reel.style.transform='translate3d(0,0,0)';reel.innerHTML=`<div class="reel-item">${picks[index]?esc(picks[index].name):'店舗を登録'}</div>`});
+  };
+  function resetSlotResultView(){const stage=$('#slot-stage'),result=$('#slot-result');stage.classList.remove('is-jackpot','is-jackpot-prelude','is-jackpot-complete');result.classList.add('hidden');result.classList.remove('with-photo');$('#result-map-btn').classList.add('hidden');$('#gacha-message').textContent=''}
+  $$('.filter').forEach(button=>button.onclick=()=>{if(spinning)return;$$('.filter').forEach(x=>x.classList.toggle('active',x===button));selectedFilter=button.dataset.filter;lastResult=null;resetSlotResultView();seedInitialSlot()});
+
+  // 各ロール停止で確実に停止音を鳴らし、最後の停止後は一度だけ当選演出へ移る。
+  reelStopSound=()=>{
+    playReelStopSound();jackpotReelStops++;if(jackpotReelStops!==3)return;
+    const sequence=++jackpotSequence,stage=$('#slot-stage'),spinButton=$('#spin-btn');stage.classList.add('is-jackpot-prelude');startFrameWhine();$('#result-map-btn').classList.add('hidden');
+    setTimeout(()=>{if(sequence!==jackpotSequence)return;spinning=true;spinButton.disabled=true;$('#result-map-btn').classList.add('hidden')},505);
+    setTimeout(()=>{if(sequence!==jackpotSequence)return;stopFrameWhine();stage.classList.remove('is-jackpot-prelude');stage.classList.add('is-jackpot');jackpotSound()},2000);
+    setTimeout(()=>{if(sequence!==jackpotSequence)return;stage.classList.add('is-jackpot-complete');spinning=false;spinButton.disabled=false;$('#result-map-btn').classList.remove('hidden')},4250);
+  };
+  clickSound=()=>{jackpotSequence++;jackpotReelStops=0;stopFrameWhine();stopDoorRevealSound();$('#slot-stage').classList.remove('is-jackpot','is-jackpot-prelude','is-jackpot-complete');$('#confetti').replaceChildren();tone(680,.06,'triangle',.045)};
+
+  if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js?v=90').catch(()=>{}));bootPromise=boot();
 })();
