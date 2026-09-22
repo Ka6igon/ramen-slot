@@ -6,23 +6,28 @@
   const validShop=s=>s&&typeof s.id==='string'&&typeof s.name==='string'&&['visited','unvisited'].includes(s.status)&&Number.isFinite(Number(s.lat))&&Number.isFinite(Number(s.lng));
   const uid=()=>crypto.randomUUID?crypto.randomUUID():`${Date.now()}-${Math.random().toString(16).slice(2)}`;
   const esc=t=>{const x=document.createElement('div');x.textContent=t||'';return x.innerHTML};
-  // 読みやすさを最優先に、空白とラーメン名の塊を保ちながら6文字程度で整列する。
+  // 読みやすさを最優先に、空白と店名らしい語の塊を保ちながら6文字程度で整列する。
   const slotNameMarkup=(t,maxChars=6)=>{
     const hardLines=String(t||'').replace(/\r\n?/g,'\n').split('\n'),output=[];let current='';
     const flush=()=>{if(current){output.push(current);current=''}};
-    const pieces=unit=>{const chars=[...unit],count=Math.max(1,Math.ceil(chars.length/maxChars)),base=Math.floor(chars.length/count),extra=chars.length%count,result=[];let start=0;for(let i=0;i<count;i++){const size=base+(i<extra?1:0);result.push(chars.slice(start,start+size).join(''));start+=size}return result};
-    const units=word=>word.match(/中華そば|ラーメン|らーめん|つけ麺|油そば|まぜそば|担々麺|鶏白湯|豚骨|煮干し|[A-Za-z0-9]+|./gu)||[];
+    const width=text=>[...text].reduce((total,char)=>total+(char===' '?0.35:/[\u0020-\u007e]/.test(char)?0.55:1),0);
+    const pieces=unit=>{const chars=[...unit],count=Math.max(1,Math.ceil(width(unit)/maxChars));if(count===1)return[unit];const base=Math.floor(chars.length/count),extra=chars.length%count,result=[];let start=0;for(let i=0;i<count;i++){const size=base+(i<extra?1:0);result.push(chars.slice(start,start+size).join(''));start+=size}return result};
+    const units=word=>{const result=[],fixed=/^(中華そば|らぁ麺|ラーメン|らーめん|つけ麺|油そば|まぜそば|担々麺|鶏白湯|豚骨|煮干し|総本店|本店|支店|別館|麺屋)/u,anchor=/(中華そば|らぁ麺|ラーメン|らーめん|つけ麺|油そば|まぜそば|担々麺|鶏白湯|豚骨|煮干し|総本店|本店|支店|別館|麺屋)/u;let rest=word;while(rest){const fixedMatch=rest.match(fixed),foodHall=rest.match(/^[^×]*?食堂/u),birdAndBonito=rest.match(/^[^麺]*?と[^麺]*?(?=麺屋)/u),ascii=rest.match(/^[A-Za-z0-9]+/u),japanese=rest.match(/^[ぁ-んァ-ヶ一-龯々ー]+/u);let unit,breakAfter=false;if(fixedMatch)unit=fixedMatch[0];else if(foodHall)unit=foodHall[0];else if(birdAndBonito){unit=birdAndBonito[0];breakAfter=true}else if(ascii)unit=ascii[0];else if(japanese){const next=japanese[0].slice(1).search(anchor);unit=next<0?japanese[0]:japanese[0].slice(0,next+1)}else unit=[...rest][0];result.push(unit);if(breakAfter)result.push('\f');rest=rest.slice(unit.length)}return result};
     for(let lineIndex=0;lineIndex<hardLines.length;lineIndex++){
       let line=hardLines[lineIndex];
-      // 手入力された改行でも、1文字だけの行は隣の行と結合してから再配置する。
-      if([...line].length===1&&lineIndex<hardLines.length-1){const carry=current||output.pop()||'';current='';hardLines[lineIndex+1]=carry+line+hardLines[lineIndex+1];continue}
-      if([...line].length===1&&output.length)output[output.length-1]+=line;
+      // 手入力された改行でも、1文字だけの行は隣の行と結合してから再配置する（×は例外）。
+      if(line!=='×'&&[...line].length===1&&lineIndex<hardLines.length-1){const carry=current||output.pop()||'';current='';hardLines[lineIndex+1]=carry+line+hardLines[lineIndex+1];continue}
+      if(line==='×'){flush();output.push(line)}
+      else if([...line].length===1&&output.length)output[output.length-1]+=line;
       else{
         for(const word of line.trim().split(/\s+/).filter(Boolean)){
           let firstUnit=true;
           for(const unit of units(word))for(const piece of pieces(unit)){
+            // 「NewYork×NewYork」のような対戦・コラボ表記は記号も意味のある独立行にする。
+            if(piece==='×'){flush();output.push(piece);continue}
+            if(piece==='\f'){flush();continue}
             const prefix=firstUnit&&current?' ':'';firstUnit=false;
-            if(current&&[...current].length+[...prefix].length+[...piece].length>maxChars)flush();
+            if(current&&width(current)+width(prefix)+width(piece)>maxChars)flush();
             current+=current?prefix+piece:piece;
           }
         }
@@ -30,7 +35,7 @@
       flush();
     }
     // 予期しない折り返しで1文字だけ残った場合も、前後と再配分して孤立させない。
-    for(let i=0;i<output.length;i++)if([...output[i]].length===1&&output.length>1){const start=i?i-1:0,combined=i?output[i-1]+output[i]:output[i]+output[i+1];output.splice(start,2,...pieces(combined));i=Math.max(-1,start-1)}
+    for(let i=0;i<output.length;i++)if(output[i]!=='×'&&[...output[i]].length===1&&output.length>1){const start=i?i-1:0,combined=i?output[i-1]+output[i]:output[i]+output[i+1];output.splice(start,2,...pieces(combined));i=Math.max(-1,start-1)}
     return output.map(esc).join('<br>');
   };
   const date=d=>d?new Date(`${d}T00:00:00`).toLocaleDateString('ja-JP',{year:'numeric',month:'long',day:'numeric'}):'未記録';
