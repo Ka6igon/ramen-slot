@@ -6,21 +6,32 @@
   const validShop=s=>s&&typeof s.id==='string'&&typeof s.name==='string'&&['visited','unvisited'].includes(s.status)&&Number.isFinite(Number(s.lat))&&Number.isFinite(Number(s.lng));
   const uid=()=>crypto.randomUUID?crypto.randomUUID():`${Date.now()}-${Math.random().toString(16).slice(2)}`;
   const esc=t=>{const x=document.createElement('div');x.textContent=t||'';return x.innerHTML};
-  // 登録済みの改行を優先しつつ、1文字だけの行を作らないよう均等に分ける。
-  const slotNameMarkup=(t,maxChars=5)=>{
-    const original=String(t||'').replace(/\r\n?/g,'\n').split('\n'),lines=[];
-    for(let i=0;i<original.length;i++){
-      const part=original[i];
-      if([...part].length===1&&lines.length)lines[lines.length-1]+=part;
-      else if([...part].length===1&&original[i+1]!==undefined)original[i+1]=part+original[i+1];
-      else lines.push(part);
+  // 読みやすさを最優先に、空白とラーメン名の塊を保ちながら6文字程度で整列する。
+  const slotNameMarkup=(t,maxChars=6)=>{
+    const hardLines=String(t||'').replace(/\r\n?/g,'\n').split('\n'),output=[];let current='';
+    const flush=()=>{if(current){output.push(current);current=''}};
+    const pieces=unit=>{const chars=[...unit],count=Math.max(1,Math.ceil(chars.length/maxChars)),base=Math.floor(chars.length/count),extra=chars.length%count,result=[];let start=0;for(let i=0;i<count;i++){const size=base+(i<extra?1:0);result.push(chars.slice(start,start+size).join(''));start+=size}return result};
+    const units=word=>word.match(/中華そば|ラーメン|らーめん|つけ麺|油そば|まぜそば|担々麺|鶏白湯|豚骨|煮干し|[A-Za-z0-9]+|./gu)||[];
+    for(let lineIndex=0;lineIndex<hardLines.length;lineIndex++){
+      let line=hardLines[lineIndex];
+      // 手入力された改行でも、1文字だけの行は隣の行と結合してから再配置する。
+      if([...line].length===1&&lineIndex<hardLines.length-1){const carry=current||output.pop()||'';current='';hardLines[lineIndex+1]=carry+line+hardLines[lineIndex+1];continue}
+      if([...line].length===1&&output.length)output[output.length-1]+=line;
+      else{
+        for(const word of line.trim().split(/\s+/).filter(Boolean)){
+          let firstUnit=true;
+          for(const unit of units(word))for(const piece of pieces(unit)){
+            const prefix=firstUnit&&current?' ':'';firstUnit=false;
+            if(current&&[...current].length+[...prefix].length+[...piece].length>maxChars)flush();
+            current+=current?prefix+piece:piece;
+          }
+        }
+      }
+      flush();
     }
-    return lines.flatMap(line=>{
-      const chars=[...line],count=Math.max(1,Math.ceil(chars.length/maxChars));
-      const base=Math.floor(chars.length/count),extra=chars.length%count,balanced=[];let start=0;
-      for(let i=0;i<count;i++){const size=base+(i<extra?1:0);balanced.push(chars.slice(start,start+size).join(''));start+=size}
-      return balanced;
-    }).map(esc).join('<br>');
+    // 予期しない折り返しで1文字だけ残った場合も、前後と再配分して孤立させない。
+    for(let i=0;i<output.length;i++)if([...output[i]].length===1&&output.length>1){const start=i?i-1:0,combined=i?output[i-1]+output[i]:output[i]+output[i+1];output.splice(start,2,...pieces(combined));i=Math.max(-1,start-1)}
+    return output.map(esc).join('<br>');
   };
   const date=d=>d?new Date(`${d}T00:00:00`).toLocaleDateString('ja-JP',{year:'numeric',month:'long',day:'numeric'}):'未記録';
 
@@ -158,5 +169,5 @@
   };
   clickSound=()=>{jackpotSequence++;jackpotReelStops=0;stopFrameWhine();stopDoorRevealSound();$('#slot-stage').classList.remove('is-jackpot','is-jackpot-prelude','is-jackpot-complete');$('#confetti').replaceChildren();tone(680,.06,'triangle',.045)};
 
-  if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js?v=95').catch(()=>{}));bootPromise=boot();
+  if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js?v=96').catch(()=>{}));bootPromise=boot();
 })();
